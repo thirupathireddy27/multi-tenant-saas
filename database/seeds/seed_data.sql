@@ -1,6 +1,8 @@
 -- seed_data.sql
 -- Purpose: Insert initial data for automated evaluation
 
+BEGIN;
+
 -- =========================
 -- TENANT
 -- =========================
@@ -36,7 +38,7 @@ INSERT INTO users (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     NULL,
     'superadmin@system.com',
-    '$2b$10$ZxXKQ9N4JtZy0O7rPq1z6e7jTg1pZ4u2xXWZ8h0Hk3E9Y6ZyQv9P2',
+    '$2b$10$nHbjN6lwrjIC2lxHqJI3eOzBu/.iN11pbdu5ys8BDQOslEvZANlwS',
     'System Admin',
     'super_admin'
 );
@@ -55,7 +57,7 @@ INSERT INTO users (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     '11111111-1111-1111-1111-111111111111',
     'admin@demo.com',
-    '$2b$10$ZxXKQ9N4JtZy0O7rPq1z6e7jTg1pZ4u2xXWZ8h0Hk3E9Y6ZyQv9P2',
+    '$2b$10$qUR.cCDxGDV6eIg66zZSK.Tsxdrzumr16oqJBZivk6Cx45R8HK/DK',
     'Demo Admin',
     'tenant_admin'
 );
@@ -75,7 +77,7 @@ INSERT INTO users (
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     '11111111-1111-1111-1111-111111111111',
     'user1@demo.com',
-    '$2b$10$ZxXKQ9N4JtZy0O7rPq1z6e7jTg1pZ4u2xXWZ8h0Hk3E9Y6ZyQv9P2',
+    '$2b$10$dvvyg5djv8bzzJlPdyzzIumtGApc2iboTueDxQwTZcO4z6FjE0.ya',
     'Demo User One',
     'user'
 ),
@@ -83,7 +85,7 @@ INSERT INTO users (
     'dddddddd-dddd-dddd-dddd-dddddddddddd',
     '11111111-1111-1111-1111-111111111111',
     'user2@demo.com',
-    '$2b$10$ZxXKQ9N4JtZy0O7rPq1z6e7jTg1pZ4u2xXWZ8h0Hk3E9Y6ZyQv9P2',
+    '$2b$10$dvvyg5djv8bzzJlPdyzzIumtGApc2iboTueDxQwTZcO4z6FjE0.ya',
     'Demo User Two',
     'user'
 );
@@ -151,20 +153,20 @@ INSERT INTO tasks (
 );
 
 -- =========================
--- AUDIT LOG SAMPLE
+-- AUDIT LOG
 -- =========================
 INSERT INTO audit_logs (
     id,
     tenant_id,
     user_id,
     action,
-    entity_type,
-    entity_id
+    entity_type
 ) VALUES (
     '99999999-9999-9999-9999-999999999999',
     '11111111-1111-1111-1111-111111111111',
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     'SEED_DATA_INIT',
-    'system',
-    NULL
+    'system'
 );
+
+COMMIT;
