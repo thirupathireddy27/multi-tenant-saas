@@ -1,25 +1,71 @@
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 
-const login = async (req, res) => {
+/* ================= REGISTER ================= */
+async function register(req, res) {
+  try {
+    const { email, password, full_name, role } = req.body;
+
+    // tenant context must come from middleware (JWT)
+    const tenantId = req.tenantId;
+
+    if (!email || !password || !full_name || !tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      `INSERT INTO users (email, password_hash, full_name, role, tenant_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, full_name, role`,
+      [email, hashedPassword, full_name, role || "user", tenantId]
+    );
+
+    return res.status(201).json({
+      success: true,
+      data: result.rows[0],
+    });
+  } catch (err) {
+    console.error("REGISTER ERROR:", err);
+
+    if (err.code === "23505") {
+      return res.status(409).json({
+        success: false,
+        message: "User already exists in this tenant",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Registration failed",
+    });
+  }
+}
+
+/* ================= LOGIN ================= */
+async function login(req, res) {
   try {
     const { email, password, tenantSubdomain } = req.body;
 
     if (!email || !password || !tenantSubdomain) {
       return res.status(400).json({
         success: false,
-        message: "Email, password and tenantSubdomain are required",
+        message: "email, password, tenantSubdomain required",
       });
     }
 
-    // 1️⃣ Find tenant
+    // 1️⃣ Resolve tenant from subdomain
     const tenantResult = await pool.query(
-      "SELECT * FROM tenants WHERE subdomain = $1",
+      `SELECT id, status FROM tenants WHERE subdomain = $1`,
       [tenantSubdomain]
     );
 
-    if (tenantResult.rows.length === 0) {
+    if (tenantResult.rowCount === 0) {
       return res.status(404).json({
         success: false,
         message: "Tenant not found",
@@ -35,17 +81,15 @@ const login = async (req, res) => {
       });
     }
 
-    // 2️⃣ Find user inside tenant
+    const tenantId = tenant.id;
+
+    // 2️⃣ Fetch user ONLY inside this tenant
     const userResult = await pool.query(
-      `
-      SELECT id, email, password_hash, full_name, role, is_active
-      FROM users
-      WHERE email = $1 AND tenant_id = $2
-      `,
-      [email, tenant.id]
+      `SELECT * FROM users WHERE email = $1 AND tenant_id = $2`,
+      [email, tenantId]
     );
 
-    if (userResult.rows.length === 0) {
+    if (userResult.rowCount === 0) {
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -54,20 +98,9 @@ const login = async (req, res) => {
 
     const user = userResult.rows[0];
 
-    if (!user.is_active) {
-      return res.status(403).json({
-        success: false,
-        message: "User account is inactive",
-      });
-    }
-
     // 3️⃣ Verify password
-    const passwordMatch = await bcrypt.compare(
-      password,
-      user.password_hash
-    );
-
-    if (!passwordMatch) {
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -78,59 +111,44 @@ const login = async (req, res) => {
     const token = jwt.sign(
       {
         userId: user.id,
-        tenantId: tenant.id,
+        tenantId: user.tenant_id,
         role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: "24h" }
     );
 
-    // 5️⃣ Response
-    return res.status(200).json({
+    return res.json({
       success: true,
       data: {
+        token,
         user: {
           id: user.id,
           email: user.email,
-          fullName: user.full_name,
           role: user.role,
-          tenantId: tenant.id,
+          tenantId: user.tenant_id,
         },
-        token,
-        expiresIn: 86400,
       },
     });
-  } catch (error) {
-    console.error("Login error:", error);
+  } catch (err) {
+    console.error("LOGIN ERROR:", err);
     return res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message: "Login failed",
     });
   }
-};
+}
 
-const getCurrentUser = async (req, res) => {
-  try {
-    const user = req.user;
-
-    res.status(200).json({
-      success: true,
-      data: {
-        id: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        role: user.role,
-        tenantId: user.tenant_id
-      }
-    });
-  } catch (error) {
-    console.error("Get current user error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
+/* ================= CURRENT USER ================= */
+function getCurrentUser(req, res) {
+  return res.json({
+    success: true,
+    data: req.user,
+  });
+}
 
 module.exports = {
+  register,
   login,
-  getCurrentUser
+  getCurrentUser,
 };
-
