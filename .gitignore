@@ -1,0 +1,27 @@
+node_modules/
+dist/
+build/
+coverage/
+.DS_Store
+.env.local
+.env.production
+# We are keeping .env for this specific submission as requested by the instructions, 
+# but usually it is ignored. Ensure it only has test credentials.
+# .env 
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+
+# Temp scripts
+verify_requirements.js
+gen_hash.js
+frontend_check_port3000*
