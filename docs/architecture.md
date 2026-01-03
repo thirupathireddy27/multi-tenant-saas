@@ -1,92 +1,100 @@
-# Architecture Document
-## Multi-Tenant SaaS Platform – Project & Task Management System
+# System Architecture Design
 
-## 1. System Architecture Overview
+## System Architecture Diagram
 
-The Multi-Tenant SaaS Platform is designed using a modular, layered architecture that separates concerns between the frontend, backend, and database layers. This architectural approach improves scalability, maintainability, and security while ensuring strict data isolation between tenants.
+```mermaid
+graph TD
+    Client[Browser (React App)] -->|HTTPS/JSON| LoadBalancer[Docker Host / Nginx]
+    LoadBalancer -->|Port 3000| Frontend[Frontend Container]
+    LoadBalancer -->|Port 5000| Backend[Backend Container (Node/Express)]
+    Backend -->|SQL| DB[Database Container (PostgreSQL 15)]
+    
+    subgraph "Docker Network"
+    Frontend
+    Backend
+    DB
+    end
+```
 
-At a high level, the system consists of three major components: a client-side frontend application, a backend API server, and a relational database. These components communicate with each other through well-defined interfaces and operate within a containerized environment managed by Docker.
+## Database Schema Design (ERD)
 
-The frontend application is built using React and runs in the user’s browser. It is responsible for rendering user interfaces such as login pages, dashboards, project views, and task management screens. The frontend communicates with the backend exclusively through RESTful API calls over HTTP. All protected requests include a JSON Web Token (JWT) in the Authorization header, which is used to verify user identity and permissions.
+```mermaid
+erDiagram
+    TENANTS ||--o{ USERS : has
+    TENANTS ||--o{ PROJECTS : owns
+    TENANTS ||--o{ TASKS : owns
+    TENANTS ||--o{ AUDIT_LOGS : has
+    PROJECTS ||--o{ TASKS : contains
+    USERS ||--o{ PROJECTS : creates
+    USERS ||--o{ TASKS : assigned_to
 
-The backend API server is implemented using Node.js and Express.js. It serves as the core of the system and handles all business logic, authentication, authorization, and tenant isolation. The backend exposes a set of REST APIs for authentication, tenant management, user management, project management, and task management. Middleware layers are used to validate JWT tokens, enforce role-based access control (RBAC), and ensure that tenant-specific queries are properly filtered using the tenant identifier.
+    TENANTS {
+        uuid id PK
+        string name
+        string subdomain UK
+        enum status
+        enum subscription_plan
+        int max_users
+        int max_projects
+    }
 
-The database layer uses PostgreSQL as a relational data store. All tenant-specific entities such as users, projects, and tasks include a tenant_id column to enforce logical data isolation. Database constraints, foreign keys, and indexes are used to maintain data integrity and optimize query performance. Super administrator users are stored as a special case with a NULL tenant_id, allowing system-wide access without violating tenant boundaries.
+    USERS {
+        uuid id PK
+        uuid tenant_id FK
+        string email
+        string password_hash
+        string full_name
+        enum role
+    }
 
-To support scalability and consistent deployment, the entire system is containerized using Docker. Docker Compose is used to orchestrate the frontend, backend, and database services, allowing the application to be started with a single command. This setup ensures consistent environments across development, testing, and evaluation, and simplifies dependency management.
+    PROJECTS {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string description
+        enum status
+        uuid created_by FK
+    }
 
-Overall, this architecture ensures a clear separation of responsibilities, secure multi-tenant data handling, and flexibility for future enhancements. By combining a modern frontend framework, a robust backend API layer, and a reliable relational database, the system provides a strong foundation for a production-ready multi-tenant SaaS platform.
+    TASKS {
+        uuid id PK
+        uuid project_id FK
+        uuid tenant_id FK
+        string title
+        string description
+        enum status
+        enum priority
+        uuid assigned_to FK
+    }
+```
 
+## API Architecture
 
-## 2. High-Level System Architecture Diagram
-The high-level system architecture diagram illustrates the interaction between the client, frontend, backend, and database components within a Dockerized environment.
+### Auth Module
+- `POST /api/auth/register-tenant` (Public)
+- `POST /api/auth/login` (Public)
+- `GET /api/auth/me` (Auth)
+- `POST /api/auth/logout` (Auth)
 
+### Tenant Module
+- `GET /api/tenants/:id` (Tenant Admin/Super Admin)
+- `PUT /api/tenants/:id` (Tenant Admin/Super Admin)
+- `GET /api/tenants` (Super Admin)
 
-## 3. Database Schema Design (ERD)
+### Users Module
+- `GET /api/tenants/:id/users` (Auth)
+- `POST /api/tenants/:id/users` (Tenant Admin)
+- `PUT /api/users/:id` (Tenant Admin/Self)
+- `DELETE /api/users/:id` (Tenant Admin)
 
-## 4. Multi-Tenancy & Data Isolation Strategy
+### Projects Module
+- `POST /api/projects` (Auth)
+- `GET /api/projects` (Auth)
+- `PUT /api/projects/:id` (Tenant Admin/Creator)
+- `DELETE /api/projects/:id` (Tenant Admin/Creator)
 
-## 5. API Architecture
-
-The backend of the multi-tenant SaaS platform exposes a set of RESTful APIs organized by functional modules. All APIs follow a consistent response structure and enforce authentication, authorization, and tenant isolation at the API level.
-
-Each protected API requires a valid JSON Web Token (JWT) in the Authorization header. Tenant context is derived from the JWT token and never trusted from client input. Role-based access control (RBAC) is applied to restrict sensitive operations.
-
----
-
-### 5.1 Authentication APIs
-
-| Method | Endpoint | Authentication | Role |
-|------|---------|----------------|------|
-| POST | /api/auth/register-tenant | No | Public |
-| POST | /api/auth/login | No | Public |
-| GET  | /api/auth/me | Yes | All roles |
-| POST | /api/auth/logout | Yes | All roles |
-
----
-
-### 5.2 Tenant Management APIs
-
-| Method | Endpoint | Authentication | Role |
-|------|---------|----------------|------|
-| GET | /api/tenants/:tenantId | Yes | Tenant Admin / Super Admin |
-| PUT | /api/tenants/:tenantId | Yes | Tenant Admin / Super Admin |
-| GET | /api/tenants | Yes | Super Admin |
-
----
-
-### 5.3 User Management APIs
-
-| Method | Endpoint | Authentication | Role |
-|------|---------|----------------|------|
-| POST | /api/tenants/:tenantId/users | Yes | Tenant Admin |
-| GET | /api/tenants/:tenantId/users | Yes | Tenant Admin / User |
-| PUT | /api/users/:userId | Yes | Tenant Admin / Self |
-| DELETE | /api/users/:userId | Yes | Tenant Admin |
-
----
-
-### 5.4 Project Management APIs
-
-| Method | Endpoint | Authentication | Role |
-|------|---------|----------------|------|
-| POST | /api/projects | Yes | Tenant Admin / User |
-| GET | /api/projects | Yes | Tenant Admin / User |
-| PUT | /api/projects/:projectId | Yes | Tenant Admin / Creator |
-| DELETE | /api/projects/:projectId | Yes | Tenant Admin / Creator |
-
----
-
-### 5.5 Task Management APIs
-
-| Method | Endpoint | Authentication | Role |
-|------|---------|----------------|------|
-| POST | /api/projects/:projectId/tasks | Yes | Tenant Admin / User |
-| GET | /api/projects/:projectId/tasks | Yes | Tenant Admin / User |
-| PATCH | /api/tasks/:taskId/status | Yes | Tenant Admin / User |
-| PUT | /api/tasks/:taskId | Yes | Tenant Admin / User |
-
----
-
-All API endpoints enforce tenant-based filtering to ensure complete data isolation. Super administrator users bypass tenant filtering where required, while all other users are strictly limited to their assigned tenant.
-
+### Tasks Module
+- `POST /api/projects/:projectId/tasks` (Auth)
+- `GET /api/projects/:projectId/tasks` (Auth)
+- `PATCH /api/tasks/:taskId/status` (Auth)
+- `PUT /api/tasks/:taskId` (Auth)
