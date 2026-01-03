@@ -6,23 +6,8 @@ BEGIN;
 -- =========================
 -- TENANT
 -- =========================
-INSERT INTO tenants (
-    id,
-    name,
-    subdomain,
-    status,
-    subscription_plan,
-    max_users,
-    max_projects
-) VALUES (
-    '11111111-1111-1111-1111-111111111111',
-    'Demo Company',
-    'demo',
-    'active',
-    'pro',
-    25,
-    15
-);
+INSERT INTO tenants (id, name, subdomain, max_users, max_projects)
+VALUES ('11111111-1111-1111-1111-111111111111', 'Demo Company', 'demo', 5, 3);
 
 -- =========================
 -- SUPER ADMIN
@@ -38,7 +23,7 @@ INSERT INTO users (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     NULL,
     'superadmin@system.com',
-    '$2b$10$nHbjN6lwrjIC2lxHqJI3eOzBu/.iN11pbdu5ys8BDQOslEvZANlwS',
+    '$2a$10$iFCKyWqkbsjKZB/JupKTF.M64J5Zrl2WP/h5YHLDkzEML2IhFBjoG',
     'System Admin',
     'super_admin'
 );
@@ -57,7 +42,7 @@ INSERT INTO users (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     '11111111-1111-1111-1111-111111111111',
     'admin@demo.com',
-    '$2b$10$qUR.cCDxGDV6eIg66zZSK.Tsxdrzumr16oqJBZivk6Cx45R8HK/DK',
+    '$2a$10$mp/LekapzMrGDmVwLi.B5OemHIed0vzKPq6VUa18D75VvdwLqhQ.2',
     'Demo Admin',
     'tenant_admin'
 );
@@ -77,7 +62,7 @@ INSERT INTO users (
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     '11111111-1111-1111-1111-111111111111',
     'user1@demo.com',
-    '$2b$10$dvvyg5djv8bzzJlPdyzzIumtGApc2iboTueDxQwTZcO4z6FjE0.ya',
+    '$2a$10$mp/LekapzMrGDmVwLi.B5OemHIed0vzKPq6VUa18D75VvdwLqhQ.2',
     'Demo User One',
     'user'
 ),
@@ -85,7 +70,7 @@ INSERT INTO users (
     'dddddddd-dddd-dddd-dddd-dddddddddddd',
     '11111111-1111-1111-1111-111111111111',
     'user2@demo.com',
-    '$2b$10$dvvyg5djv8bzzJlPdyzzIumtGApc2iboTueDxQwTZcO4z6FjE0.ya',
+    '$2a$10$mp/LekapzMrGDmVwLi.B5OemHIed0vzKPq6VUa18D75VvdwLqhQ.2',
     'Demo User Two',
     'user'
 );
