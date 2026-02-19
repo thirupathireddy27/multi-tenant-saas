@@ -78,7 +78,7 @@ const ProjectList = () => {
                     <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
                     <p className="text-gray-600 mt-2">Manage your projects and tasks</p>
                 </div>
-                {user.role === 'tenant_admin' && (
+                {(user.role === 'tenant_admin' || user.role === 'user') && (
                     <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -136,7 +136,7 @@ const ProjectList = () => {
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                                     <span style={{ color: '#6b7280', fontSize: '0.75rem', marginBottom: '0.5rem' }}>Created: {new Date(project.createdAt).toLocaleDateString()}</span>
                                     {/* Delete Button for Tenant Admin/Super Admin */}
-                                    {(user.role === 'tenant_admin' || user.role === 'super_admin') && (
+                                    {(user.role === 'tenant_admin' || user.role === 'super_admin' || user.role === 'user') && (
                                         <button
                                             onClick={(e) => { e.preventDefault(); handleDelete(project.id); }}
                                             className="status-pill"

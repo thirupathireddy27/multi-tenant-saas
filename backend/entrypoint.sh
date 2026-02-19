@@ -8,8 +8,12 @@ done
 
 echo "✅ PostgreSQL is ready"
 
+echo "📦 Installing dependencies..."
+npm install
+
 echo "📦 Running DB migrations & seed..."
-sh ./scripts/init-db.sh
+npm run migrate
+npm run seed
 
 echo "🚀 Starting backend server..."
-node src/server.js
+npm start

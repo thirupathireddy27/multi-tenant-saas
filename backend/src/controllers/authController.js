@@ -82,102 +82,72 @@ const login = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    // Identify tenant
-    let targetTenantId = null;
-
-    console.log('--- LOGIN ATTEMPT ---');
-    console.log('Email:', email);
-    console.log('Subdomain:', tenantSubdomain);
+    const client = await db.pool.connect();
 
     try {
+        // 1. Identify Tenant Context if provided
+        let targetTenantId = null;
         if (tenantSubdomain) {
-            const tenantRes = await db.query('SELECT id, status FROM tenants WHERE subdomain = $1', [tenantSubdomain]);
+            const tenantRes = await client.query('SELECT id, status FROM tenants WHERE subdomain = $1', [tenantSubdomain]);
             if (tenantRes.rows.length === 0) {
-                console.log('Tenant not found for subdomain:', tenantSubdomain);
                 return res.status(404).json({ success: false, message: 'Tenant not found' });
             }
             if (tenantRes.rows[0].status !== 'active') {
                 return res.status(403).json({ success: false, message: 'Tenant is not active' });
             }
             targetTenantId = tenantRes.rows[0].id;
-            console.log('Target Tenant ID:', targetTenantId);
         } else if (tenantId) {
             targetTenantId = tenantId;
         }
 
-        // Find user
-        // Note: Super Admin has tenant_id = NULL. 
-        // Regular users MUST match the tenant_id.
-        // If tenantSubdomain is provided, we check if user belongs to it OR is super_admin.
+        // 2. Fetch all users with this email
+        const userRes = await client.query('SELECT * FROM users WHERE email = $1', [email]);
+        const users = userRes.rows;
 
-        let userQuery = 'SELECT * FROM users WHERE email = $1';
-        let queryParams = [email];
-
-        // If tenant context is known, we can prefer users in that tenant
-        // But email is unique per tenant.
-        // We should first find the user and check their tenant.
-
-        // HOWEVER, the login UI asks for "Tenant Subdomain".
-        // So we should look for a user with (email, tenant_id) OR (email, tenant_id=NULL for super_admin).
-
-        if (targetTenantId) {
-            userQuery = 'SELECT * FROM users WHERE email = $1 AND (tenant_id = $2 OR tenant_id IS NULL)';
-            queryParams = [email, targetTenantId];
-        } else {
-            // If no tenant specified, maybe we can find them? 
-            // But user@demo.com can exist in multiple tenants...
-            // The PRD says "Tenant Subdomain" is required in one place, but "tenantSubdomain OR tenantId" in API.
-            // Let's assume strictness:
-            // If the user is super_admin, they might log in without a tenant subdomain?
-            // The seed data has superAdmin with tenantId=NULL.
-
-            // Let's try to find ANY user with this email to see if they are super admin.
-            userQuery = 'SELECT * FROM users WHERE email = $1';
-        }
-
-        const startQuery = await db.query(userQuery, queryParams);
-        console.log('Users found with email:', startQuery.rows.length);
-
-        if (startQuery.rows.length === 0) {
+        if (users.length === 0) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
-        // If multiple users found (same email in diff tenants) and no tenant specified -> Error?
-        // But if we used the targetTenantId filter, we should get at most 2 (one user, one super_admin).
-        // Prioritize the one that matches the tenant.
-
-        let user;
+        // 3. Select the correct user based on context
+        let user = null;
 
         if (targetTenantId) {
-            user = startQuery.rows.find(u => u.tenant_id === targetTenantId);
+            // Context is specific tenant
+            // Prioritize user in that tenant
+            user = users.find(u => u.tenant_id === targetTenantId);
+
+            // If not found, check if there is a super admin
             if (!user) {
-                user = startQuery.rows.find(u => u.tenant_id === null && u.role === 'super_admin');
+                user = users.find(u => u.role === 'super_admin');
+                // Super admins (tenant_id IS NULL) can access any tenant
+            }
+
+            if (!user) {
+                // User exists but not in this tenant and not super admin
+                return res.status(401).json({ success: false, message: 'Invalid credentials' });
             }
         } else {
-            // No tenant specified. 
-            // 1. Check for Super Admin first
-            user = startQuery.rows.find(u => u.role === 'super_admin');
+            // No context
+            // 1. Check for Super Admin
+            user = users.find(u => u.role === 'super_admin');
 
-            // 2. If no super admin, and only one user found, let them in (Infer Tenant)
-            if (!user && startQuery.rows.length === 1) {
-                user = startQuery.rows[0];
+            // 2. If single user, infer context
+            if (!user && users.length === 1) {
+                user = users[0];
             }
 
-            // 3. If multiple users found and no subdomain, fails (user stays undefined)
+            // 3. If multiple users and no context -> Ambiguous
+            if (!user && users.length > 1) {
+                return res.status(400).json({ success: false, message: 'Tenant subdomain required' });
+            }
         }
 
         if (!user) {
-            console.log('User not found in context.');
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
-        console.log('User found:', user.email, user.id);
-        console.log('Stored Hash:', user.password_hash);
-
-        // Check password
+        // 4. Verify Password
         const isMatch = await bcrypt.compare(password, user.password_hash);
-        console.log('Password Match Result:', isMatch);
-
         if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
@@ -186,10 +156,16 @@ const login = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Account is deactivated' });
         }
 
-        // Generate Token
+        // 5. Generate Token
+        // For Super Admin accessing a specific tenant, we might want to stash that tenantId in the token?
+        // Or keep it null. The requirements say "tenantId: null" for super_admin.
+        // But if they are "logging in to a tenant", frontend might expect tenantId.
+        // However, standard RBAC usually keeps user's native tenantId.
+        // We will respect the user's record.
+
         const payload = {
             userId: user.id,
-            tenantId: user.tenant_id, // can be null for super_admin
+            tenantId: user.tenant_id,
             role: user.role
         };
 
@@ -210,13 +186,15 @@ const login = async (req, res) => {
                     tenantId: user.tenant_id
                 },
                 token,
-                expiresIn: 86400 // 24h in seconds
+                expiresIn: 86400
             }
         });
 
     } catch (err) {
         console.error('Login Error:', err);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
+    } finally {
+        client.release();
     }
 };
 

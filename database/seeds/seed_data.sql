@@ -23,7 +23,7 @@ INSERT INTO users (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     NULL,
     'superadmin@system.com',
-    '$2a$10$iFCKyWqkbsjKZB/JupKTF.M64J5Zrl2WP/h5YHLDkzEML2IhFBjoG',
+    '$2a$10$tv0PS2tXi8.XGk3S/s4NzgaV38Z2aonDgZQKQpFD72DclN',
     'System Admin',
     'super_admin'
 );
@@ -42,7 +42,7 @@ INSERT INTO users (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     '11111111-1111-1111-1111-111111111111',
     'admin@demo.com',
-    '$2a$10$mp/LekapzMrGDmVwLi.B5OemHIed0vzKPq6VUa18D75VvdwLqhQ.2',
+    '$2a$10$tv0PS2tXi8.XGk3S/s4NzgaV38Z2aonDgZQKQpFD72DclN', 
     'Demo Admin',
     'tenant_admin'
 );
@@ -62,7 +62,7 @@ INSERT INTO users (
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     '11111111-1111-1111-1111-111111111111',
     'user1@demo.com',
-    '$2a$10$mp/LekapzMrGDmVwLi.B5OemHIed0vzKPq6VUa18D75VvdwLqhQ.2',
+    '$2a$10$tv0PS2tXi8.XGk3S/s4NzgaV38Z2aonDgZQKQpFD72DclN', 
     'Demo User One',
     'user'
 ),
@@ -70,7 +70,7 @@ INSERT INTO users (
     'dddddddd-dddd-dddd-dddd-dddddddddddd',
     '11111111-1111-1111-1111-111111111111',
     'user2@demo.com',
-    '$2a$10$mp/LekapzMrGDmVwLi.B5OemHIed0vzKPq6VUa18D75VvdwLqhQ.2',
+    '$2a$10$tv0PS2tXi8.XGk3S/s4NzgaV38Z2aonDgZQKQpFD72DclN', 
     'Demo User Two',
     'user'
 );

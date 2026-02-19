@@ -58,8 +58,8 @@ const listProjects = async (req, res) => {
                    (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'completed') as completed_task_count,
                    t.name as tenant_name
             FROM projects p
-            JOIN users u ON p.created_by = u.id
-            JOIN tenants t ON p.tenant_id = t.id
+            LEFT JOIN users u ON p.created_by = u.id
+            LEFT JOIN tenants t ON p.tenant_id = t.id
         `;
 
         const queryParams = [];
